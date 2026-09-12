@@ -14,17 +14,48 @@ async function carregarTexto(caminho) {
 
 async function iniciar() {
     try {
-        const [fonteVertex, fonteFragment] = await Promise.all([
+       const [fonteVertex, fonteFragment] = await Promise.all([
             carregarTexto('shaders/vertex.glsl'),
             carregarTexto('shaders/fragment.glsl')
         ]);
 
-        console.log("Textos dos shaders carregados com sucesso!");
-        // O próximo passo é compilar e linkar
+        const vertexShader = criarShader(gl, gl.VERTEX_SHADER, fonteVertex);
+        const fragmentShader = criarShader(gl, gl.FRAGMENT_SHADER, fonteFragment);
+        const programa = criarPrograma(gl, vertexShader, fragmentShader);
+
+        gl.useProgram(programa);
+        console.log("Programa linkado e ativo na GPU!");
         
     } catch (erro) {
         console.error("Deu erro:", erro);
     }
+}
+
+function criarShader(gl, tipo, fonte) {
+    const shader = gl.createShader(tipo);
+    gl.shaderSource(shader, fonte);
+    gl.compileShader(shader);
+    
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        const info = gl.getShaderInfoLog(shader);
+        gl.deleteShader(shader);
+        throw new Error(`Erro ao compilar shader: ${info}`);
+    }
+    return shader;
+}
+
+function criarPrograma(gl, vertexShader, fragmentShader) {
+    const programa = gl.createProgram();
+    gl.attachShader(programa, vertexShader);
+    gl.attachShader(programa, fragmentShader);
+    gl.linkProgram(programa);
+    
+    if (!gl.getProgramParameter(programa, gl.LINK_STATUS)) {
+        const info = gl.getProgramInfoLog(programa);
+        gl.deleteProgram(programa);
+        throw new Error(`Erro ao linkar programa: ${info}`);
+    }
+    return programa;
 }
 
 iniciar();
