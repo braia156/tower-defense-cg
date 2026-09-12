@@ -24,6 +24,33 @@ async function iniciar() {
         const programa = criarPrograma(gl, vertexShader, fragmentShader);
 
         gl.useProgram(programa);
+
+        // 1. Dados na RAM (3 vértices com x, y, z)
+        const posicoes = new Float32Array([
+            0.0,  0.5, 0.0, 
+            -0.5, -0.5, 0.0, 
+            0.5, -0.5, 0.0  
+        ]);
+
+        // 2. VBO: Abastecendo a GPU
+        const vbo = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+        gl.bufferData(gl.ARRAY_BUFFER, posicoes, gl.STATIC_DRAW); //
+
+        // 3. VAO: Registrando a interpretação
+        const vao = gl.createVertexArray();
+        gl.bindVertexArray(vao); //[cite: 2]
+
+        // Descobre onde está a entrada 'posicao' no Vertex Shader
+        const localPosicao = gl.getAttribLocation(programa, "posicao");
+
+        // Ensina a ler: 3 componentes por vértice, tipo FLOAT, sem normalizar, stride 0, offset 0
+        gl.vertexAttribPointer(localPosicao, 3, gl.FLOAT, false, 0, 0); //[cite: 2]
+        gl.enableVertexAttribArray(localPosicao); //[cite: 2]
+
+        // 4. Ordem de desenho (Draw Call)
+        gl.drawArrays(gl.TRIANGLES, 0, 3); //[cite: 2]
+
         console.log("Programa linkado e ativo na GPU!");
         
     } catch (erro) {
