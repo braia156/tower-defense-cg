@@ -3,6 +3,22 @@ const gl = canvas.getContext('webgl2');
 
 if (!gl) throw new Error('WebGL 2 indisponível');
 
+const uiVida = document.getElementById('uiVida');
+const uiPontos = document.getElementById('uiPontos');
+const telaGameOver = document.getElementById('telaGameOver');
+const btnReiniciar = document.getElementById('btnReiniciar');
+
+let jogoAtivo = true;
+let vidaTorre = 100;
+let pontuacao = 0;
+let inimigos = [];
+let projetis = [];
+
+function atualizarHUD() {
+    uiVida.innerText = vidaTorre;
+    uiPontos.innerText = pontuacao;
+}
+
 function criarMatrizOrtografica(esquerda, direita, baixo, cima, perto, longe) {
     return new Float32Array([
         2 / (direita - esquerda), 0, 0, 0,
@@ -70,11 +86,12 @@ function criarPrograma(gl, vertexShader, fragmentShader) {
 
 async function iniciar() {
     try {
-        const [fonteVertex, fonteFragment, texturaTorre, texturaInimigo] = await Promise.all([
+        const [fonteVertex, fonteFragment, texturaTorre, texturaInimigo, texturaProjetil] = await Promise.all([
             carregarTexto('shaders/vertex.glsl'),
             carregarTexto('shaders/fragment.glsl'),
             carregarTextura(gl, 'assets/torre.png'),
-            carregarTextura(gl, 'assets/inimigo.png')
+            carregarTextura(gl, 'assets/inimigo.png'),
+            carregarTextura(gl, 'assets/projetil.png')
         ]);
 
         const vertexShader = criarShader(gl, gl.VERTEX_SHADER, fonteVertex);
@@ -127,13 +144,47 @@ async function iniciar() {
         const torreY = (canvas.height / 2) - (torreAltura / 2);
         const matrizModeloTorre = criarMatrizModelo(torreX, torreY, torreLargura, torreAltura);
 
-        const inimigos = [];
         const inimigoTamanho = 64;
         const velocidade = 100; 
+        const projetilTamanho = 16;
+        const velocidadeProjetil = 300;
+        const raioAtaqueTorre = 250;
+        
         let tempoUltimoSpawn = 0;
+        let tempoUltimoTiro = 0;
         let tempoAnterior;
 
+        canvas.addEventListener('mousedown', (e) => {
+            if (!jogoAtivo) return;
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            for (let i = inimigos.length - 1; i >= 0; i--) {
+                const ini = inimigos[i];
+                if (mouseX >= ini.x && mouseX <= ini.x + inimigoTamanho &&
+                    mouseY >= ini.y && mouseY <= ini.y + inimigoTamanho) {
+                    ini.vida -= 1;
+                    break; 
+                }
+            }
+        });
+
+        btnReiniciar.addEventListener('click', () => {
+            vidaTorre = 100;
+            pontuacao = 0;
+            inimigos = [];
+            projetis = [];
+            jogoAtivo = true;
+            telaGameOver.style.display = 'none';
+            atualizarHUD();
+            tempoAnterior = performance.now();
+            requestAnimationFrame(desenharQuadro);
+        });
+
         function desenharQuadro(tempoAtual) {
+            if (!jogoAtivo) return;
+
             const delta = tempoAnterior === undefined ? 0 : (tempoAtual - tempoAnterior) / 1000;
             tempoAnterior = tempoAtual;
 
@@ -143,13 +194,69 @@ async function iniciar() {
             if (tempoAtual - tempoUltimoSpawn > 2000) {
                 inimigos.push({
                     x: Math.random() < 0.5 ? -inimigoTamanho : canvas.width,
-                    y: Math.random() * canvas.height,
-                    flipX: false
+                    y: Math.random() * (canvas.height - inimigoTamanho),
+                    flipX: false,
+                    vida: 3,
+                    ultimoAtaque: 0
                 });
                 tempoUltimoSpawn = tempoAtual;
             }
 
-            inimigos.forEach(inimigo => {
+            if (tempoAtual - tempoUltimoTiro > 1000) {
+                let inimigoMaisProximo = null;
+                let menorDistancia = Infinity;
+
+                inimigos.forEach(inimigo => {
+                    const dx = (torreX + torreLargura / 2) - (inimigo.x + inimigoTamanho / 2);
+                    const dy = (torreY + torreAltura / 2) - (inimigo.y + inimigoTamanho / 2);
+                    const distancia = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distancia < raioAtaqueTorre && distancia < menorDistancia) {
+                        menorDistancia = distancia;
+                        inimigoMaisProximo = inimigo;
+                    }
+                });
+
+                if (inimigoMaisProximo) {
+                    projetis.push({
+                        x: torreX + (torreLargura / 2) - (projetilTamanho / 2),
+                        y: torreY + (torreAltura / 2) - (projetilTamanho / 2),
+                        alvo: inimigoMaisProximo
+                    });
+                    tempoUltimoTiro = tempoAtual;
+                }
+            }
+
+            for (let i = projetis.length - 1; i >= 0; i--) {
+                const p = projetis[i];
+                
+                if (!inimigos.includes(p.alvo)) {
+                    projetis.splice(i, 1);
+                    continue;
+                }
+
+                const dx = (p.alvo.x + inimigoTamanho / 2) - (p.x + projetilTamanho / 2);
+                const dy = (p.alvo.y + inimigoTamanho / 2) - (p.y + projetilTamanho / 2);
+                const distancia = Math.sqrt(dx * dx + dy * dy);
+
+                if (distancia < 20) {
+                    p.alvo.vida -= 1;
+                    projetis.splice(i, 1);
+                } else {
+                    p.x += (dx / distancia) * velocidadeProjetil * delta;
+                    p.y += (dy / distancia) * velocidadeProjetil * delta;
+                }
+            }
+
+            for (let i = inimigos.length - 1; i >= 0; i--) {
+                if (inimigos[i].vida <= 0) {
+                    pontuacao += 10;
+                    atualizarHUD();
+                    inimigos.splice(i, 1);
+                    continue;
+                }
+
+                const inimigo = inimigos[i];
                 const dx = (torreX + torreLargura / 2) - (inimigo.x + inimigoTamanho / 2);
                 const dy = (torreY + torreAltura / 2) - (inimigo.y + inimigoTamanho / 2);
                 const distancia = Math.sqrt(dx * dx + dy * dy);
@@ -159,8 +266,20 @@ async function iniciar() {
                 if (distancia > 65) {
                     inimigo.x += (dx / distancia) * velocidade * delta;
                     inimigo.y += (dy / distancia) * velocidade * delta;
+                } else {
+                    if (tempoAtual - inimigo.ultimoAtaque > 1500) {
+                        vidaTorre -= 10;
+                        inimigo.ultimoAtaque = tempoAtual;
+                        atualizarHUD();
+
+                        if (vidaTorre <= 0) {
+                            jogoAtivo = false;
+                            telaGameOver.style.display = 'flex';
+                            return; 
+                        }
+                    }
                 }
-            });
+            }
 
             gl.bindVertexArray(vao);
             gl.activeTexture(gl.TEXTURE0);
@@ -174,6 +293,13 @@ async function iniciar() {
             inimigos.forEach(inimigo => {
                 const matrizInimigo = criarMatrizModelo(inimigo.x, inimigo.y, inimigoTamanho, inimigoTamanho, inimigo.flipX);
                 gl.uniformMatrix4fv(localMatrizModelo, false, matrizInimigo);
+                gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+            });
+
+            gl.bindTexture(gl.TEXTURE_2D, texturaProjetil);
+            projetis.forEach(p => {
+                const matrizProjetil = criarMatrizModelo(p.x, p.y, projetilTamanho, projetilTamanho);
+                gl.uniformMatrix4fv(localMatrizModelo, false, matrizProjetil);
                 gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
             });
 
