@@ -48,11 +48,8 @@ function criarShader(gl, tipo, fonte) {
     const shader = gl.createShader(tipo);
     gl.shaderSource(shader, fonte);
     gl.compileShader(shader);
-    
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        const info = gl.getShaderInfoLog(shader);
-        gl.deleteShader(shader);
-        throw new Error(`Erro ao compilar shader: ${info}`);
+        throw new Error(`Erro: ${gl.getShaderInfoLog(shader)}`);
     }
     return shader;
 }
@@ -62,27 +59,24 @@ function criarPrograma(gl, vertexShader, fragmentShader) {
     gl.attachShader(programa, vertexShader);
     gl.attachShader(programa, fragmentShader);
     gl.linkProgram(programa);
-    
     if (!gl.getProgramParameter(programa, gl.LINK_STATUS)) {
-        const info = gl.getProgramInfoLog(programa);
-        gl.deleteProgram(programa);
-        throw new Error(`Erro ao linkar programa: ${info}`);
+        throw new Error(`Erro: ${gl.getProgramInfoLog(programa)}`);
     }
     return programa;
 }
 
 async function iniciar() {
     try {
-        const [fonteVertex, fonteFragment, texturaTorre] = await Promise.all([
+        const [fonteVertex, fonteFragment, texturaTorre, texturaInimigo] = await Promise.all([
             carregarTexto('shaders/vertex.glsl'),
             carregarTexto('shaders/fragment.glsl'),
-            carregarTextura(gl, 'assets/torre.png')
+            carregarTextura(gl, 'assets/torre.png'),
+            carregarTextura(gl, 'assets/inimigo.png')
         ]);
 
         const vertexShader = criarShader(gl, gl.VERTEX_SHADER, fonteVertex);
         const fragmentShader = criarShader(gl, gl.FRAGMENT_SHADER, fonteFragment);
         const programa = criarPrograma(gl, vertexShader, fragmentShader);
-
         gl.useProgram(programa);
 
         gl.enable(gl.BLEND);
@@ -95,10 +89,7 @@ async function iniciar() {
              1.0, 1.0, 0.0,   1.0, 1.0  
         ]);
 
-        const indices = new Uint16Array([
-            0, 1, 2,
-            0, 2, 3
-        ]);
+        const indices = new Uint16Array([0, 1, 2, 0, 2, 3]);
 
         const vao = gl.createVertexArray();
         gl.bindVertexArray(vao);
@@ -111,15 +102,13 @@ async function iniciar() {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
 
-        const tamanhoFloat = 4;
-        const stride = 5 * tamanhoFloat;
-
+        const stride = 5 * 4;
         const localPosicao = gl.getAttribLocation(programa, "posicao");
         gl.vertexAttribPointer(localPosicao, 3, gl.FLOAT, false, stride, 0);
         gl.enableVertexAttribArray(localPosicao);
 
         const localUv = gl.getAttribLocation(programa, "uv");
-        gl.vertexAttribPointer(localUv, 2, gl.FLOAT, false, stride, 3 * tamanhoFloat);
+        gl.vertexAttribPointer(localUv, 2, gl.FLOAT, false, stride, 3 * 4);
         gl.enableVertexAttribArray(localUv);
 
         const matrizProjecao = criarMatrizOrtografica(0, canvas.width, canvas.height, 0, -1, 1);
@@ -127,14 +116,18 @@ async function iniciar() {
         gl.uniformMatrix4fv(localMatrizProjecao, false, matrizProjecao);
 
         const localMatrizModelo = gl.getUniformLocation(programa, "matrizModelo");
+        const localTextura = gl.getUniformLocation(programa, "texturaAtiva");
 
         const torreLargura = 128;
         const torreAltura = 128;
         const torreX = (canvas.width / 2) - (torreLargura / 2);
         const torreY = (canvas.height / 2) - (torreAltura / 2);
-        
-        const matrizModelo = criarMatrizModelo(torreX, torreY, torreLargura, torreAltura);
+        const matrizModeloTorre = criarMatrizModelo(torreX, torreY, torreLargura, torreAltura);
 
+        const inimigos = [];
+        const inimigoTamanho = 64;
+        const velocidade = 100; 
+        let tempoUltimoSpawn = 0;
         let tempoAnterior;
 
         function desenharQuadro(tempoAtual) {
@@ -144,15 +137,39 @@ async function iniciar() {
             gl.clearColor(0.2, 0.3, 0.3, 1.0);
             gl.clear(gl.COLOR_BUFFER_BIT);
 
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, texturaTorre);
-            const localTextura = gl.getUniformLocation(programa, "texturaAtiva");
-            gl.uniform1i(localTextura, 0);
+            if (tempoAtual - tempoUltimoSpawn > 2000) {
+                inimigos.push({
+                    x: Math.random() < 0.5 ? -inimigoTamanho : canvas.width,
+                    y: Math.random() * canvas.height
+                });
+                tempoUltimoSpawn = tempoAtual;
+            }
 
-            gl.uniformMatrix4fv(localMatrizModelo, false, matrizModelo);
+            inimigos.forEach(inimigo => {
+                const dx = (torreX + torreLargura / 2) - (inimigo.x + inimigoTamanho / 2);
+                const dy = (torreY + torreAltura / 2) - (inimigo.y + inimigoTamanho / 2);
+                const distancia = Math.sqrt(dx * dx + dy * dy);
+
+                if (distancia > 5) {
+                    inimigo.x += (dx / distancia) * velocidade * delta;
+                    inimigo.y += (dy / distancia) * velocidade * delta;
+                }
+            });
 
             gl.bindVertexArray(vao);
+            gl.activeTexture(gl.TEXTURE0);
+            gl.uniform1i(localTextura, 0);
+
+            gl.bindTexture(gl.TEXTURE_2D, texturaTorre);
+            gl.uniformMatrix4fv(localMatrizModelo, false, matrizModeloTorre);
             gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+
+            gl.bindTexture(gl.TEXTURE_2D, texturaInimigo);
+            inimigos.forEach(inimigo => {
+                const matrizInimigo = criarMatrizModelo(inimigo.x, inimigo.y, inimigoTamanho, inimigoTamanho);
+                gl.uniformMatrix4fv(localMatrizModelo, false, matrizInimigo);
+                gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+            });
 
             requestAnimationFrame(desenharQuadro);
         }
@@ -160,7 +177,7 @@ async function iniciar() {
         requestAnimationFrame(desenharQuadro);
 
     } catch (erro) {
-        console.error("Deu erro:", erro);
+        console.error(erro);
     }
 }
 

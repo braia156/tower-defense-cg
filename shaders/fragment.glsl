@@ -8,7 +8,7 @@ void main() {
     vec4 corTextura = texture(texturaAtiva, vUv);
     
     // Se o pixel for quase transparente, joga fora (não desenha nada)
-    if(corTextura.a < 0.1) {
+    if(corTextura.a < 0.9) {
         discard;
     }
     
