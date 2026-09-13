@@ -1,14 +1,14 @@
 # Tower Defense - WebGL
 
 ## (a) O Jogo
-[Breve descrição do jogo]
+* A preencher durante o desenvolvimento do jogo
 
 ## (b) Criadores
 * Bryan Felipe 
 * Pedro Soares
 
 ## (c) Media kit
-* A preencherdurante o desenvolvimento do jogo
+* A preencher durante o desenvolvimento do jogo
 
 ## (d) Opcionais
 * A preencher durante o desenvolvimento do jogo
