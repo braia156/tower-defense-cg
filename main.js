@@ -12,12 +12,15 @@ function criarMatrizOrtografica(esquerda, direita, baixo, cima, perto, longe) {
     ]);
 }
 
-function criarMatrizModelo(tx, ty, sx, sy) {
+function criarMatrizModelo(tx, ty, sx, sy, flipX = false) {
+    const escalaX = flipX ? -sx : sx;
+    const posX = flipX ? tx + sx : tx;
+    
     return new Float32Array([
-        sx, 0, 0, 0,
+        escalaX, 0, 0, 0,
         0, sy, 0, 0,
         0, 0, 1, 0,
-        tx, ty, 0, 1
+        posX, ty, 0, 1
     ]);
 }
 
@@ -140,7 +143,8 @@ async function iniciar() {
             if (tempoAtual - tempoUltimoSpawn > 2000) {
                 inimigos.push({
                     x: Math.random() < 0.5 ? -inimigoTamanho : canvas.width,
-                    y: Math.random() * canvas.height
+                    y: Math.random() * canvas.height,
+                    flipX: false
                 });
                 tempoUltimoSpawn = tempoAtual;
             }
@@ -150,7 +154,9 @@ async function iniciar() {
                 const dy = (torreY + torreAltura / 2) - (inimigo.y + inimigoTamanho / 2);
                 const distancia = Math.sqrt(dx * dx + dy * dy);
 
-                if (distancia > 5) {
+                inimigo.flipX = dx < 0;
+
+                if (distancia > 65) {
                     inimigo.x += (dx / distancia) * velocidade * delta;
                     inimigo.y += (dy / distancia) * velocidade * delta;
                 }
@@ -166,7 +172,7 @@ async function iniciar() {
 
             gl.bindTexture(gl.TEXTURE_2D, texturaInimigo);
             inimigos.forEach(inimigo => {
-                const matrizInimigo = criarMatrizModelo(inimigo.x, inimigo.y, inimigoTamanho, inimigoTamanho);
+                const matrizInimigo = criarMatrizModelo(inimigo.x, inimigo.y, inimigoTamanho, inimigoTamanho, inimigo.flipX);
                 gl.uniformMatrix4fv(localMatrizModelo, false, matrizInimigo);
                 gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
             });
