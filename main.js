@@ -3,21 +3,26 @@ const gl = canvas.getContext('webgl2');
 
 if (!gl) throw new Error('WebGL 2 indisponível');
 
+const uiMuro = document.getElementById('uiMuro');
 const uiVida = document.getElementById('uiVida');
 const uiPontos = document.getElementById('uiPontos');
 const telaGameOver = document.getElementById('telaGameOver');
 const telaPause = document.getElementById('telaPause');
+const telaMenu = document.getElementById('telaMenu');
 const btnReiniciar = document.getElementById('btnReiniciar');
+const btnIniciar = document.getElementById('btnIniciar');
 
-let jogoAtivo = true;
+let jogoAtivo = false;
 let jogoPausado = false;
 let multiplicadorDificuldade = 1.0;
+let vidaMuro = 100;
 let vidaTorre = 100;
 let pontuacao = 0;
 let inimigos = [];
 let projetis = [];
 
 function atualizarHUD() {
+    uiMuro.innerText = vidaMuro > 0 ? vidaMuro : 0;
     uiVida.innerText = vidaTorre;
     uiPontos.innerText = pontuacao;
 }
@@ -89,12 +94,13 @@ function criarPrograma(gl, vertexShader, fragmentShader) {
 
 async function iniciar() {
     try {
-        const [fonteVertex, fonteFragment, texturaTorre, texturaInimigo, texturaProjetil] = await Promise.all([
+        const [fonteVertex, fonteFragment, texturaTorre, texturaInimigo, texturaProjetil, texturaMuro] = await Promise.all([
             carregarTexto('shaders/vertex.glsl'),
             carregarTexto('shaders/fragment.glsl'),
             carregarTextura(gl, 'assets/torre.png'),
             carregarTextura(gl, 'assets/inimigo.png'),
-            carregarTextura(gl, 'assets/projetil.png')
+            carregarTextura(gl, 'assets/projetil.png'),
+            carregarTextura(gl, 'assets/muro.png') 
         ]);
 
         const vertexShader = criarShader(gl, gl.VERTEX_SHADER, fonteVertex);
@@ -143,19 +149,28 @@ async function iniciar() {
 
         const torreLargura = 128;
         const torreAltura = 128;
-        const torreX = (canvas.width / 2) - (torreLargura / 2);
-        const torreY = (canvas.height / 2) - (torreAltura / 2);
+        const torreX = 20;
+        const torreY = canvas.height - torreAltura - 20;
         const matrizModeloTorre = criarMatrizModelo(torreX, torreY, torreLargura, torreAltura);
+
+        const muroLargura = 64;
+        const muroX = 180;
+        const blocosMuro = 3; 
 
         const inimigoTamanho = 64;
         const velocidade = 100; 
         const projetilTamanho = 16;
-        const velocidadeProjetil = 300;
-        const raioAtaqueTorre = 250;
+        const velocidadeProjetil = 400;
         
         let tempoUltimoSpawn = 0;
-        let tempoUltimoTiro = 0;
         let tempoAnterior;
+
+        btnIniciar.addEventListener('click', () => {
+            telaMenu.style.display = 'none';
+            jogoAtivo = true;
+            tempoAnterior = performance.now();
+            requestAnimationFrame(desenharQuadro);
+        });
 
         window.addEventListener('keydown', (e) => {
             if ((e.key === 'p' || e.key === 'P' || e.key === 'Escape') && jogoAtivo) {
@@ -179,13 +194,19 @@ async function iniciar() {
                 const ini = inimigos[i];
                 if (mouseX >= ini.x && mouseX <= ini.x + inimigoTamanho &&
                     mouseY >= ini.y && mouseY <= ini.y + inimigoTamanho) {
-                    ini.vida -= 1;
+                    
+                    projetis.push({
+                        x: torreX + (torreLargura / 2) - (projetilTamanho / 2),
+                        y: torreY + (torreAltura / 2) - (projetilTamanho / 2),
+                        alvo: ini
+                    });
                     break; 
                 }
             }
         });
 
         btnReiniciar.addEventListener('click', () => {
+            vidaMuro = 100;
             vidaTorre = 100;
             pontuacao = 0;
             inimigos = [];
@@ -211,40 +232,15 @@ async function iniciar() {
             gl.clearColor(0.2, 0.3, 0.3, 1.0);
             gl.clear(gl.COLOR_BUFFER_BIT);
 
-            if (tempoAtual - tempoUltimoSpawn > (2000 / multiplicadorDificuldade)) {
+            if (tempoAtual - tempoUltimoSpawn > (1000 / multiplicadorDificuldade)) {
                 inimigos.push({
-                    x: Math.random() < 0.5 ? -inimigoTamanho : canvas.width,
+                    x: canvas.width,
                     y: Math.random() * (canvas.height - inimigoTamanho),
                     flipX: false,
-                    vida: 3,
+                    vida: 3 + Math.floor(pontuacao / 200), 
                     ultimoAtaque: 0
                 });
                 tempoUltimoSpawn = tempoAtual;
-            }
-
-            if (tempoAtual - tempoUltimoTiro > 1000) {
-                let inimigoMaisProximo = null;
-                let menorDistancia = Infinity;
-
-                inimigos.forEach(inimigo => {
-                    const dx = (torreX + torreLargura / 2) - (inimigo.x + inimigoTamanho / 2);
-                    const dy = (torreY + torreAltura / 2) - (inimigo.y + inimigoTamanho / 2);
-                    const distancia = Math.sqrt(dx * dx + dy * dy);
-
-                    if (distancia < raioAtaqueTorre && distancia < menorDistancia) {
-                        menorDistancia = distancia;
-                        inimigoMaisProximo = inimigo;
-                    }
-                });
-
-                if (inimigoMaisProximo) {
-                    projetis.push({
-                        x: torreX + (torreLargura / 2) - (projetilTamanho / 2),
-                        y: torreY + (torreAltura / 2) - (projetilTamanho / 2),
-                        alvo: inimigoMaisProximo
-                    });
-                    tempoUltimoTiro = tempoAtual;
-                }
             }
 
             for (let i = projetis.length - 1; i >= 0; i--) {
@@ -260,7 +256,21 @@ async function iniciar() {
                 const distancia = Math.sqrt(dx * dx + dy * dy);
 
                 if (distancia < 20) {
-                    p.alvo.vida -= 1;
+                    const dano = 1 + Math.floor(pontuacao / 100);
+                    const raioArea = pontuacao >= 50 ? 80 + Math.floor(pontuacao / 50) * 10 : 0;
+                    
+                    if (raioArea > 0) {
+                        inimigos.forEach(ini => {
+                            const ex = (ini.x + inimigoTamanho / 2) - (p.x + projetilTamanho / 2);
+                            const ey = (ini.y + inimigoTamanho / 2) - (p.y + projetilTamanho / 2);
+                            if (Math.sqrt(ex * ex + ey * ey) <= raioArea) {
+                                ini.vida -= dano;
+                            }
+                        });
+                    } else {
+                        p.alvo.vida -= dano;
+                    }
+                    
                     projetis.splice(i, 1);
                 } else {
                     p.x += (dx / distancia) * velocidadeProjetil * delta;
@@ -279,13 +289,21 @@ async function iniciar() {
                 const inimigo = inimigos[i];
                 const dx = (torreX + torreLargura / 2) - (inimigo.x + inimigoTamanho / 2);
                 const dy = (torreY + torreAltura / 2) - (inimigo.y + inimigoTamanho / 2);
-                const distancia = Math.sqrt(dx * dx + dy * dy);
+                const distanciaTorre = Math.sqrt(dx * dx + dy * dy);
 
                 inimigo.flipX = dx < 0;
 
-                if (distancia > 65) {
-                    inimigo.x += (dx / distancia) * (velocidade * multiplicadorDificuldade) * delta;
-                    inimigo.y += (dy / distancia) * (velocidade * multiplicadorDificuldade) * delta;
+                const colidindoMuro = vidaMuro > 0 && inimigo.x <= muroX + muroLargura;
+
+                if (colidindoMuro) {
+                    if (tempoAtual - inimigo.ultimoAtaque > 1500) {
+                        vidaMuro -= 5;
+                        inimigo.ultimoAtaque = tempoAtual;
+                        atualizarHUD();
+                    }
+                } else if (distanciaTorre > 65) {
+                    inimigo.x += (dx / distanciaTorre) * (velocidade * multiplicadorDificuldade) * delta;
+                    inimigo.y += (dy / distanciaTorre) * (velocidade * multiplicadorDificuldade) * delta;
                 } else {
                     if (tempoAtual - inimigo.ultimoAtaque > 1500) {
                         vidaTorre -= 10;
@@ -304,6 +322,16 @@ async function iniciar() {
             gl.bindVertexArray(vao);
             gl.activeTexture(gl.TEXTURE0);
             gl.uniform1i(localTextura, 0);
+
+            if (vidaMuro > 0) {
+                gl.bindTexture(gl.TEXTURE_2D, texturaMuro);
+                for (let i = 0; i < blocosMuro; i++) {
+                    const y = canvas.height - (i + 1) * muroLargura - 20; 
+                    const matrizBloco = criarMatrizModelo(muroX, y, muroLargura, muroLargura);
+                    gl.uniformMatrix4fv(localMatrizModelo, false, matrizBloco);
+                    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+                }
+            }
 
             gl.bindTexture(gl.TEXTURE_2D, texturaTorre);
             gl.uniformMatrix4fv(localMatrizModelo, false, matrizModeloTorre);
@@ -326,7 +354,23 @@ async function iniciar() {
             requestAnimationFrame(desenharQuadro);
         }
 
-        requestAnimationFrame(desenharQuadro);
+        gl.clearColor(0.2, 0.3, 0.3, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.bindVertexArray(vao);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.uniform1i(localTextura, 0);
+        
+        gl.bindTexture(gl.TEXTURE_2D, texturaMuro);
+        for (let i = 0; i < blocosMuro; i++) {
+            const y = canvas.height - (i + 1) * muroLargura - 20; 
+            const matrizBloco = criarMatrizModelo(muroX, y, muroLargura, muroLargura);
+            gl.uniformMatrix4fv(localMatrizModelo, false, matrizBloco);
+            gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+        }
+        
+        gl.bindTexture(gl.TEXTURE_2D, texturaTorre);
+        gl.uniformMatrix4fv(localMatrizModelo, false, matrizModeloTorre);
+        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
 
     } catch (erro) {
         console.error(erro);
