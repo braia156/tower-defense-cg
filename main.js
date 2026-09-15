@@ -6,9 +6,12 @@ if (!gl) throw new Error('WebGL 2 indisponível');
 const uiVida = document.getElementById('uiVida');
 const uiPontos = document.getElementById('uiPontos');
 const telaGameOver = document.getElementById('telaGameOver');
+const telaPause = document.getElementById('telaPause');
 const btnReiniciar = document.getElementById('btnReiniciar');
 
 let jogoAtivo = true;
+let jogoPausado = false;
+let multiplicadorDificuldade = 1.0;
 let vidaTorre = 100;
 let pontuacao = 0;
 let inimigos = [];
@@ -154,8 +157,20 @@ async function iniciar() {
         let tempoUltimoTiro = 0;
         let tempoAnterior;
 
+        window.addEventListener('keydown', (e) => {
+            if ((e.key === 'p' || e.key === 'P' || e.key === 'Escape') && jogoAtivo) {
+                jogoPausado = !jogoPausado;
+                telaPause.style.display = jogoPausado ? 'flex' : 'none';
+                
+                if (!jogoPausado) {
+                    tempoAnterior = performance.now();
+                    requestAnimationFrame(desenharQuadro);
+                }
+            }
+        });
+
         canvas.addEventListener('mousedown', (e) => {
-            if (!jogoAtivo) return;
+            if (!jogoAtivo || jogoPausado) return;
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
@@ -176,22 +191,27 @@ async function iniciar() {
             inimigos = [];
             projetis = [];
             jogoAtivo = true;
+            jogoPausado = false;
+            multiplicadorDificuldade = 1.0;
             telaGameOver.style.display = 'none';
+            telaPause.style.display = 'none';
             atualizarHUD();
             tempoAnterior = performance.now();
             requestAnimationFrame(desenharQuadro);
         });
 
         function desenharQuadro(tempoAtual) {
-            if (!jogoAtivo) return;
+            if (!jogoAtivo || jogoPausado) return;
 
             const delta = tempoAnterior === undefined ? 0 : (tempoAtual - tempoAnterior) / 1000;
             tempoAnterior = tempoAtual;
 
+            multiplicadorDificuldade = 1.0 + (tempoAtual / 120000);
+
             gl.clearColor(0.2, 0.3, 0.3, 1.0);
             gl.clear(gl.COLOR_BUFFER_BIT);
 
-            if (tempoAtual - tempoUltimoSpawn > 2000) {
+            if (tempoAtual - tempoUltimoSpawn > (2000 / multiplicadorDificuldade)) {
                 inimigos.push({
                     x: Math.random() < 0.5 ? -inimigoTamanho : canvas.width,
                     y: Math.random() * (canvas.height - inimigoTamanho),
@@ -264,8 +284,8 @@ async function iniciar() {
                 inimigo.flipX = dx < 0;
 
                 if (distancia > 65) {
-                    inimigo.x += (dx / distancia) * velocidade * delta;
-                    inimigo.y += (dy / distancia) * velocidade * delta;
+                    inimigo.x += (dx / distancia) * (velocidade * multiplicadorDificuldade) * delta;
+                    inimigo.y += (dy / distancia) * (velocidade * multiplicadorDificuldade) * delta;
                 } else {
                     if (tempoAtual - inimigo.ultimoAtaque > 1500) {
                         vidaTorre -= 10;
