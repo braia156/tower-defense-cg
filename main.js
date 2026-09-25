@@ -92,12 +92,13 @@ function criarPrograma(gl, vertexShader, fragmentShader) {
 
 async function iniciar() {
     try {
-        const [fonteVertex, fonteFragment, texturaTorre, texturaInimigo, texturaProjetil] = await Promise.all([
+        const [fonteVertex, fonteFragment, texturaTorre, texturaInimigo, texturaProjetil, texturaCenario] = await Promise.all([
             carregarTexto('shaders/vertex.glsl'),
             carregarTexto('shaders/fragment.glsl'),
             carregarTextura(gl, 'assets/torre.png'),
             carregarTextura(gl, 'assets/inimigo.png'),
-            carregarTextura(gl, 'assets/projetil.png')
+            carregarTextura(gl, 'assets/projetil.png'),
+            carregarTextura(gl, 'assets/cenario.jpg')
         ]);
 
         const vertexShader = criarShader(gl, gl.VERTEX_SHADER, fonteVertex);
@@ -149,6 +150,7 @@ async function iniciar() {
         const torreX = (canvas.width / 2) - (torreLargura / 2);
         const torreY = (canvas.height / 2) - (torreAltura / 2);
         const matrizModeloTorre = criarMatrizModelo(torreX, torreY, torreLargura, torreAltura);
+        const matrizModeloCenario = criarMatrizModelo(0, 0, canvas.width, canvas.height);
 
         const inimigoTamanho = 64;
         const velocidade = 100; 
@@ -324,6 +326,10 @@ async function iniciar() {
             gl.bindVertexArray(vao);
             gl.activeTexture(gl.TEXTURE0);
             gl.uniform1i(localTextura, 0);
+
+            gl.bindTexture(gl.TEXTURE_2D, texturaCenario);
+            gl.uniformMatrix4fv(localMatrizModelo, false, matrizModeloCenario);
+            gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
 
             gl.bindTexture(gl.TEXTURE_2D, texturaTorre);
             gl.uniformMatrix4fv(localMatrizModelo, false, matrizModeloTorre);
