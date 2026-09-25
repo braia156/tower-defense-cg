@@ -9,6 +9,20 @@ const uiNivel = document.getElementById('uiNivel');
 const telaGameOver = document.getElementById('telaGameOver');
 const telaPause = document.getElementById('telaPause');
 const btnReiniciar = document.getElementById('btnReiniciar');
+const gameContainer = document.getElementById('gameContainer');
+const dicaTelaCheia = document.getElementById('dicaTelaCheia');
+
+function ajustarEscala() {
+    const escala = Math.min(window.innerWidth / canvas.width, window.innerHeight / canvas.height);
+    gameContainer.style.transform = `scale(${escala})`;
+}
+
+window.addEventListener('resize', ajustarEscala);
+ajustarEscala();
+
+document.addEventListener('fullscreenchange', () => {
+    dicaTelaCheia.innerText = document.fullscreenElement ? 'Pressione F para sair da tela cheia' : 'Pressione F para tela cheia';
+});
 
 let jogoAtivo = true;
 let jogoPausado = false;
@@ -164,6 +178,11 @@ async function iniciar() {
         let tempoDeJogo = 0;
 
         window.addEventListener('keydown', (e) => {
+            if (e.key === 'f' || e.key === 'F') {
+                if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+                else document.exitFullscreen();
+            }
+
             if ((e.key === 'p' || e.key === 'P' || e.key === 'Escape') && jogoAtivo) {
                 jogoPausado = !jogoPausado;
                 telaPause.style.display = jogoPausado ? 'flex' : 'none';
@@ -178,8 +197,8 @@ async function iniciar() {
         canvas.addEventListener('mousedown', (e) => {
             if (!jogoAtivo || jogoPausado) return;
             const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
+            const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
 
             for (let i = inimigos.length - 1; i >= 0; i--) {
                 const ini = inimigos[i];
