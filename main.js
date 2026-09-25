@@ -216,7 +216,7 @@ async function iniciar() {
                     x: Math.random() < 0.5 ? -inimigoTamanho : canvas.width,
                     y: Math.random() * (canvas.height - inimigoTamanho),
                     flipX: false,
-                    vida: 3,
+                    vida: 3 + Math.floor(pontuacao / 200), 
                     ultimoAtaque: 0
                 });
                 tempoUltimoSpawn = tempoAtual;
