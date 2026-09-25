@@ -42,7 +42,7 @@ let tempoBuff = 0;
 const somTiro = new Audio('assets/sons/somTiro.wav');
 const somDanoTorre = new Audio('assets/sons/somDanoTorre.wav');
 const somDedada = new Audio('assets/sons/somDedada.wav');
-const somMorteInimigo = new Audio('assets/sons/somMorteInimigo.mp3');
+const somMorteInimigo = new Audio('assets/sons/inimigo_morte_explosao_grave.wav');
 const somGameOver = new Audio('assets/sons/somGameOver.mp3');
 const somLevelUp = new Audio('assets/sons/somLevelUp.wav');
 const somMoedaSurgindo = new Audio('assets/sons/moeda_surgindo.wav');
@@ -211,6 +211,7 @@ async function iniciar() {
         const duracaoMoeda = 5000;
         const moedasParaBuff = 10;
         const duracaoBuff = 7000;
+        const distanciaMinimaInimigos = 48;
         
         let tempoUltimoSpawn = 0;
         let tempoUltimoTiro = 0;
@@ -437,6 +438,25 @@ async function iniciar() {
                             tocarSom(somGameOver);
                             return; 
                         }
+                    }
+                }
+            }
+
+            for (let i = 0; i < inimigos.length; i++) {
+                for (let j = i + 1; j < inimigos.length; j++) {
+                    const a = inimigos[i];
+                    const b = inimigos[j];
+                    let dx = b.x - a.x;
+                    let dy = b.y - a.y;
+                    let distancia = Math.sqrt(dx * dx + dy * dy);
+                    if (distancia === 0) { dx = 1; dy = 0; distancia = 1; }
+
+                    if (distancia < distanciaMinimaInimigos) {
+                        const empurrao = (distanciaMinimaInimigos - distancia) / 2;
+                        a.x -= (dx / distancia) * empurrao;
+                        a.y -= (dy / distancia) * empurrao;
+                        b.x += (dx / distancia) * empurrao;
+                        b.y += (dy / distancia) * empurrao;
                     }
                 }
             }
