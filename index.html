@@ -8,6 +8,7 @@
         #gameContainer { position: relative; width: 800px; height: 600px; }
         canvas { border: 1px solid #333; display: block; cursor: crosshair; }
         #hud { position: absolute; top: 15px; left: 20px; color: #fff; font-family: sans-serif; font-size: 20px; font-weight: bold; text-shadow: 2px 2px 2px #000; pointer-events: none; }
+        #indicadorBuff { display: none; position: absolute; top: 50px; left: 50%; transform: translateX(-50%); color: #facc15; font-family: sans-serif; font-size: 22px; font-weight: bold; text-shadow: 2px 2px 2px #000; pointer-events: none; }
         #dicaTelaCheia { position: absolute; bottom: 15px; right: 20px; color: #fff; font-family: sans-serif; font-size: 14px; text-shadow: 2px 2px 2px #000; pointer-events: none; }
 
         #telaGameOver { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); flex-direction: column; justify-content: center; align-items: center; color: #fff; font-family: sans-serif; z-index: 20; }
@@ -22,10 +23,12 @@
         <canvas id="gameCanvas" width="800" height="600"></canvas>
         
         <div id="hud">
-            ❤️ Torre: <span id="uiVida">100</span> | 🎯 Pontos: <span id="uiPontos">0</span> | ⚔️ Nível: <span id="uiNivel">1</span>
+            ❤️ Torre: <span id="uiVida">100</span> | 🎯 Pontos: <span id="uiPontos">0</span> | ⚔️ Nível: <span id="uiNivel">1</span> | 🪙 Moedas: <span id="uiMoedas">0</span>/10
         </div>
 
         <div id="dicaTelaCheia">Pressione F para tela cheia</div>
+
+        <div id="indicadorBuff">⚡ DEDADA FORTE: <span id="uiTempoBuff">7</span>s</div>
 
         <div id="telaPause">
             <h1 style="font-size: 48px; margin: 0;">PAUSADO</h1>

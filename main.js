@@ -11,6 +11,9 @@ const telaPause = document.getElementById('telaPause');
 const btnReiniciar = document.getElementById('btnReiniciar');
 const gameContainer = document.getElementById('gameContainer');
 const dicaTelaCheia = document.getElementById('dicaTelaCheia');
+const uiMoedas = document.getElementById('uiMoedas');
+const indicadorBuff = document.getElementById('indicadorBuff');
+const uiTempoBuff = document.getElementById('uiTempoBuff');
 
 function ajustarEscala() {
     const escala = Math.min(window.innerWidth / canvas.width, window.innerHeight / canvas.height);
@@ -32,6 +35,9 @@ let pontuacao = 0;
 let nivel = 1;
 let inimigos = [];
 let projetis = [];
+let moedas = [];
+let moedasColetadas = 0;
+let tempoBuff = 0;
 
 const somTiro = new Audio('assets/sons/somTiro.wav');
 const somDanoTorre = new Audio('assets/sons/somDanoTorre.wav');
@@ -39,6 +45,8 @@ const somDedada = new Audio('assets/sons/somDedada.wav');
 const somMorteInimigo = new Audio('assets/sons/somMorteInimigo.mp3');
 const somGameOver = new Audio('assets/sons/somGameOver.mp3');
 const somLevelUp = new Audio('assets/sons/somLevelUp.wav');
+const somMoedaSurgindo = new Audio('assets/sons/moeda_surgindo.wav');
+const somMoedaColetada = new Audio('assets/sons/moeda_pega.wav');
 const trilhaSonora = new Audio('assets/sons/trilhaSonora.mp3');
 trilhaSonora.loop = true;
 trilhaSonora.volume = 0.4;
@@ -60,6 +68,9 @@ function atualizarHUD() {
     uiVida.innerText = vidaTorre;
     uiPontos.innerText = pontuacao;
     uiNivel.innerText = nivel;
+    uiMoedas.innerText = moedasColetadas;
+    uiTempoBuff.innerText = Math.ceil(tempoBuff / 1000);
+    indicadorBuff.style.display = tempoBuff > 0 ? 'block' : 'none';
 }
 
 function criarMatrizOrtografica(esquerda, direita, baixo, cima, perto, longe) {
@@ -129,13 +140,14 @@ function criarPrograma(gl, vertexShader, fragmentShader) {
 
 async function iniciar() {
     try {
-        const [fonteVertex, fonteFragment, texturaTorre, texturaInimigo, texturaProjetil, texturaCenario] = await Promise.all([
+        const [fonteVertex, fonteFragment, texturaTorre, texturaInimigo, texturaProjetil, texturaCenario, texturaMoeda] = await Promise.all([
             carregarTexto('shaders/vertex.glsl'),
             carregarTexto('shaders/fragment.glsl'),
             carregarTextura(gl, 'assets/torre.png'),
             carregarTextura(gl, 'assets/inimigo.png'),
             carregarTextura(gl, 'assets/projetil.png'),
-            carregarTextura(gl, 'assets/cenario.jpg')
+            carregarTextura(gl, 'assets/cenario.jpg'),
+            carregarTextura(gl, 'assets/moeda.png')
         ]);
 
         const vertexShader = criarShader(gl, gl.VERTEX_SHADER, fonteVertex);
@@ -194,11 +206,17 @@ async function iniciar() {
         const projetilTamanho = 16;
         const velocidadeProjetil = 300;
         const raioAtaqueTorre = 250;
+        const moedaTamanho = 32;
+        const intervaloMoeda = 4000;
+        const duracaoMoeda = 5000;
+        const moedasParaBuff = 10;
+        const duracaoBuff = 7000;
         
         let tempoUltimoSpawn = 0;
         let tempoUltimoTiro = 0;
         let tempoAnterior;
         let tempoDeJogo = 0;
+        let tempoUltimaMoeda = 0;
 
         window.addEventListener('keydown', (e) => {
             if (e.key === 'f' || e.key === 'F') {
@@ -226,11 +244,28 @@ async function iniciar() {
             const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
             const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
 
+            for (let i = moedas.length - 1; i >= 0; i--) {
+                const m = moedas[i];
+                if (mouseX >= m.x && mouseX <= m.x + moedaTamanho &&
+                    mouseY >= m.y && mouseY <= m.y + moedaTamanho) {
+                    moedas.splice(i, 1);
+                    moedasColetadas++;
+                    tocarSom(somMoedaColetada);
+
+                    if (moedasColetadas >= moedasParaBuff) {
+                        moedasColetadas = 0;
+                        tempoBuff = duracaoBuff;
+                    }
+                    atualizarHUD();
+                    return;
+                }
+            }
+
             for (let i = inimigos.length - 1; i >= 0; i--) {
                 const ini = inimigos[i];
                 if (mouseX >= ini.x && mouseX <= ini.x + inimigoTamanho &&
                     mouseY >= ini.y && mouseY <= ini.y + inimigoTamanho) {
-                    ini.vida -= 1;
+                    ini.vida -= tempoBuff > 0 ? ini.vida : 1;
                     tocarSom(somDedada);
                     break; 
                 }
@@ -247,6 +282,10 @@ async function iniciar() {
             multiplicadorDificuldade = 1.0;
             tempoDeJogo = 0;
             nivel = 1;
+            moedas = [];
+            moedasColetadas = 0;
+            tempoBuff = 0;
+            tempoUltimaMoeda = 0;
             telaGameOver.style.display = 'none';
             telaPause.style.display = 'none';
             atualizarHUD();
@@ -272,6 +311,12 @@ async function iniciar() {
                 tocarSom(somLevelUp);
             }
 
+            if (tempoBuff > 0) {
+                const segundosAntes = Math.ceil(tempoBuff / 1000);
+                tempoBuff = Math.max(0, tempoBuff - delta * 1000);
+                if (Math.ceil(tempoBuff / 1000) !== segundosAntes) atualizarHUD();
+            }
+
             gl.clearColor(0.2, 0.3, 0.3, 1.0);
             gl.clear(gl.COLOR_BUFFER_BIT);
 
@@ -291,6 +336,25 @@ async function iniciar() {
                     ultimoAtaque: 0
                 });
                 tempoUltimoSpawn = tempoAtual;
+            }
+
+            if (tempoDeJogo - tempoUltimaMoeda > intervaloMoeda) {
+                let x, y, distanciaTorre;
+                do {
+                    x = 50 + Math.random() * (canvas.width - 100 - moedaTamanho);
+                    y = 50 + Math.random() * (canvas.height - 100 - moedaTamanho);
+                    const dx = (torreX + torreLargura / 2) - (x + moedaTamanho / 2);
+                    const dy = (torreY + torreAltura / 2) - (y + moedaTamanho / 2);
+                    distanciaTorre = Math.sqrt(dx * dx + dy * dy);
+                } while (distanciaTorre < 120);
+
+                moedas.push({ x, y, criadaEm: tempoDeJogo });
+                tempoUltimaMoeda = tempoDeJogo;
+                tocarSom(somMoedaSurgindo);
+            }
+
+            for (let i = moedas.length - 1; i >= 0; i--) {
+                if (tempoDeJogo - moedas[i].criadaEm > duracaoMoeda) moedas.splice(i, 1);
             }
 
             if (tempoAtual - tempoUltimoTiro > 1000) {
@@ -393,6 +457,13 @@ async function iniciar() {
             inimigos.forEach(inimigo => {
                 const matrizInimigo = criarMatrizModelo(inimigo.x, inimigo.y, inimigoTamanho, inimigoTamanho, inimigo.flipX);
                 gl.uniformMatrix4fv(localMatrizModelo, false, matrizInimigo);
+                gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+            });
+
+            gl.bindTexture(gl.TEXTURE_2D, texturaMoeda);
+            moedas.forEach(m => {
+                const matrizMoeda = criarMatrizModelo(m.x, m.y, moedaTamanho, moedaTamanho);
+                gl.uniformMatrix4fv(localMatrizModelo, false, matrizMoeda);
                 gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
             });
 
