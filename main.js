@@ -33,6 +33,29 @@ let nivel = 1;
 let inimigos = [];
 let projetis = [];
 
+const somTiro = new Audio('assets/sons/somTiro.wav');
+const somDanoTorre = new Audio('assets/sons/somDanoTorre.wav');
+const somDedada = new Audio('assets/sons/somDedada.wav');
+const somMorteInimigo = new Audio('assets/sons/somMorteInimigo.mp3');
+const somGameOver = new Audio('assets/sons/somGameOver.mp3');
+const somLevelUp = new Audio('assets/sons/somLevelUp.wav');
+const trilhaSonora = new Audio('assets/sons/trilhaSonora.mp3');
+trilhaSonora.loop = true;
+trilhaSonora.volume = 0.4;
+
+function tocarSom(som) {
+    som.currentTime = 0;
+    som.play().catch(() => {});
+}
+
+function tocarTrilha() {
+    if (jogoAtivo && !jogoPausado) trilhaSonora.play().catch(() => {});
+}
+
+// o navegador só libera áudio depois da primeira interação do jogador
+window.addEventListener('pointerdown', tocarTrilha, { once: true });
+window.addEventListener('keydown', tocarTrilha, { once: true });
+
 function atualizarHUD() {
     uiVida.innerText = vidaTorre;
     uiPontos.innerText = pontuacao;
@@ -190,6 +213,9 @@ async function iniciar() {
                 if (!jogoPausado) {
                     tempoAnterior = performance.now();
                     requestAnimationFrame(desenharQuadro);
+                    tocarTrilha();
+                } else {
+                    trilhaSonora.pause();
                 }
             }
         });
@@ -205,6 +231,7 @@ async function iniciar() {
                 if (mouseX >= ini.x && mouseX <= ini.x + inimigoTamanho &&
                     mouseY >= ini.y && mouseY <= ini.y + inimigoTamanho) {
                     ini.vida -= 1;
+                    tocarSom(somDedada);
                     break; 
                 }
             }
@@ -225,6 +252,8 @@ async function iniciar() {
             atualizarHUD();
             tempoAnterior = performance.now();
             requestAnimationFrame(desenharQuadro);
+            trilhaSonora.currentTime = 0;
+            tocarTrilha();
         });
 
         function desenharQuadro(tempoAtual) {
@@ -240,6 +269,7 @@ async function iniciar() {
             if (novoNivel !== nivel) {
                 nivel = novoNivel;
                 atualizarHUD();
+                tocarSom(somLevelUp);
             }
 
             gl.clearColor(0.2, 0.3, 0.3, 1.0);
@@ -285,6 +315,7 @@ async function iniciar() {
                         alvo: inimigoMaisProximo
                     });
                     tempoUltimoTiro = tempoAtual;
+                    tocarSom(somTiro);
                 }
             }
 
@@ -313,6 +344,7 @@ async function iniciar() {
                 if (inimigos[i].vida <= 0) {
                     pontuacao += 10;
                     atualizarHUD();
+                    tocarSom(somMorteInimigo);
                     inimigos.splice(i, 1);
                     continue;
                 }
@@ -332,10 +364,13 @@ async function iniciar() {
                         vidaTorre -= 10;
                         inimigo.ultimoAtaque = tempoAtual;
                         atualizarHUD();
+                        tocarSom(somDanoTorre);
 
                         if (vidaTorre <= 0) {
                             jogoAtivo = false;
                             telaGameOver.style.display = 'flex';
+                            trilhaSonora.pause();
+                            tocarSom(somGameOver);
                             return; 
                         }
                     }
