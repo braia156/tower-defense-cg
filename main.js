@@ -215,9 +215,16 @@ async function iniciar() {
             gl.clear(gl.COLOR_BUFFER_BIT);
 
             if (tempoAtual - tempoUltimoSpawn > (2000 / multiplicadorDificuldade)) {
+                const lado = Math.floor(Math.random() * 4); // 0 cima, 1 direita, 2 baixo, 3 esquerda
+                let x, y;
+                if (lado === 0)      { x = Math.random() * (canvas.width - inimigoTamanho);  y = -inimigoTamanho; }
+                else if (lado === 1) { x = canvas.width;                                     y = Math.random() * (canvas.height - inimigoTamanho); }
+                else if (lado === 2) { x = Math.random() * (canvas.width - inimigoTamanho);  y = canvas.height; }
+                else                 { x = -inimigoTamanho;                                  y = Math.random() * (canvas.height - inimigoTamanho); }
+
                 inimigos.push({
-                    x: Math.random() < 0.5 ? -inimigoTamanho : canvas.width,
-                    y: Math.random() * (canvas.height - inimigoTamanho),
+                    x,
+                    y,
                     flipX: false,
                     vida: 3 + Math.floor(pontuacao / 200), 
                     ultimoAtaque: 0
