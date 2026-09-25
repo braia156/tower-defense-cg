@@ -193,6 +193,7 @@ async function iniciar() {
 
         const localMatrizModelo = gl.getUniformLocation(programa, "matrizModelo");
         const localTextura = gl.getUniformLocation(programa, "texturaAtiva");
+        const localCorEfeito = gl.getUniformLocation(programa, "corEfeito");
 
         const torreLargura = 128;
         const torreAltura = 128;
@@ -471,7 +472,16 @@ async function iniciar() {
 
             gl.bindTexture(gl.TEXTURE_2D, texturaTorre);
             gl.uniformMatrix4fv(localMatrizModelo, false, matrizModeloTorre);
+            if (tempoBuff > 0) {
+                const t = tempoDeJogo / 100;
+                gl.uniform4f(localCorEfeito,
+                    0.5 + 0.5 * Math.sin(t),
+                    0.5 + 0.5 * Math.sin(t + 2.1),
+                    0.5 + 0.5 * Math.sin(t + 4.2),
+                    0.5);
+            }
             gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+            gl.uniform4f(localCorEfeito, 0, 0, 0, 0);
 
             gl.bindTexture(gl.TEXTURE_2D, texturaInimigo);
             inimigos.forEach(inimigo => {
