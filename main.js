@@ -5,6 +5,7 @@ if (!gl) throw new Error('WebGL 2 indisponível');
 
 const uiVida = document.getElementById('uiVida');
 const uiPontos = document.getElementById('uiPontos');
+const uiNivel = document.getElementById('uiNivel');
 const telaGameOver = document.getElementById('telaGameOver');
 const telaPause = document.getElementById('telaPause');
 const btnReiniciar = document.getElementById('btnReiniciar');
@@ -14,12 +15,14 @@ let jogoPausado = false;
 let multiplicadorDificuldade = 1.0;
 let vidaTorre = 100;
 let pontuacao = 0;
+let nivel = 1;
 let inimigos = [];
 let projetis = [];
 
 function atualizarHUD() {
     uiVida.innerText = vidaTorre;
     uiPontos.innerText = pontuacao;
+    uiNivel.innerText = nivel;
 }
 
 function criarMatrizOrtografica(esquerda, direita, baixo, cima, perto, longe) {
@@ -195,6 +198,7 @@ async function iniciar() {
             jogoPausado = false;
             multiplicadorDificuldade = 1.0;
             tempoDeJogo = 0;
+            nivel = 1;
             telaGameOver.style.display = 'none';
             telaPause.style.display = 'none';
             atualizarHUD();
@@ -210,6 +214,12 @@ async function iniciar() {
             tempoDeJogo += delta * 1000;
 
             multiplicadorDificuldade = 1.0 + (tempoDeJogo / 120000);
+
+            const novoNivel = Math.floor(tempoDeJogo / 30000) + 1;
+            if (novoNivel !== nivel) {
+                nivel = novoNivel;
+                atualizarHUD();
+            }
 
             gl.clearColor(0.2, 0.3, 0.3, 1.0);
             gl.clear(gl.COLOR_BUFFER_BIT);
