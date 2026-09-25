@@ -156,6 +156,7 @@ async function iniciar() {
         let tempoUltimoSpawn = 0;
         let tempoUltimoTiro = 0;
         let tempoAnterior;
+        let tempoDeJogo = 0;
 
         window.addEventListener('keydown', (e) => {
             if ((e.key === 'p' || e.key === 'P' || e.key === 'Escape') && jogoAtivo) {
@@ -193,6 +194,7 @@ async function iniciar() {
             jogoAtivo = true;
             jogoPausado = false;
             multiplicadorDificuldade = 1.0;
+            tempoDeJogo = 0;
             telaGameOver.style.display = 'none';
             telaPause.style.display = 'none';
             atualizarHUD();
@@ -205,8 +207,9 @@ async function iniciar() {
 
             const delta = tempoAnterior === undefined ? 0 : (tempoAtual - tempoAnterior) / 1000;
             tempoAnterior = tempoAtual;
+            tempoDeJogo += delta * 1000;
 
-            multiplicadorDificuldade = 1.0 + (tempoAtual / 120000);
+            multiplicadorDificuldade = 1.0 + (tempoDeJogo / 120000);
 
             gl.clearColor(0.2, 0.3, 0.3, 1.0);
             gl.clear(gl.COLOR_BUFFER_BIT);
