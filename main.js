@@ -146,7 +146,7 @@ async function iniciar() {
             carregarTextura(gl, 'assets/torre.png'),
             carregarTextura(gl, 'assets/inimigo.png'),
             carregarTextura(gl, 'assets/projetil.png'),
-            carregarTextura(gl, 'assets/cenario.jpg'),
+            carregarTextura(gl, 'assets/cenario_dark_fantasy.png'),
             carregarTextura(gl, 'assets/moeda.png')
         ]);
 
@@ -211,7 +211,7 @@ async function iniciar() {
         const intervaloMoeda = 4000;
         const duracaoMoeda = 5000;
         const moedasParaBuff = 10;
-        const duracaoBuff = 7000;
+        const duracaoBuff = 8000;
         const distanciaMinimaInimigos = 48;
         
         let tempoUltimoSpawn = 0;
@@ -334,7 +334,7 @@ async function iniciar() {
                     x,
                     y,
                     flipX: false,
-                    vida: 3 + Math.floor(pontuacao / 200), 
+                    vida: 2, 
                     ultimoAtaque: 0
                 });
                 tempoUltimoSpawn = tempoAtual;
